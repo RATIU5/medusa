@@ -311,7 +311,7 @@ async function createOrderFixture({ container, product, location }) {
 
   const inventoryModule = container.resolve(Modules.INVENTORY)
 
-  const reservation = await inventoryModule.createReservationItems([
+  await inventoryModule.createReservationItems([
     {
       line_item_id: order.items![0].id,
       inventory_item_id: inventoryItem.id,
@@ -357,55 +357,6 @@ medusaIntegrationTestRunner({
         orderService = container.resolve(Modules.ORDER)
       })
 
-      it("should get stock location", async () => {
-        expect.assertions(1)
-        const workflow = createOrderFulfillmentWorkflow(container)
-
-        const order = await createOrderFixture({ container, product, location })
-        const itemWithInventory = order.items!.find(
-          (o) => o.variant_sku === variantSkuWithInventory
-        )!
-
-        // Create a fulfillment
-        const createOrderFulfillmentData: OrderWorkflow.CreateOrderFulfillmentWorkflowInput =
-          {
-            order_id: order.id,
-            created_by: "user_1",
-            items: [
-              {
-                id: itemWithInventory.id,
-                quantity: 1,
-              },
-            ],
-            no_notification: false,
-            // location_id: location.id,
-          }
-
-        const wf = await createOrderFulfillmentWorkflow(container).run({
-          input: createOrderFulfillmentData,
-        })
-
-        expect(wf.transaction.context.invoke['create-fulfillment-workflow-as-step'].output.compensateInput.transaction.payload.location).toEqual({
-          id: location.id,
-          name: "Warehouse",
-          address: {
-            id: expect.any(String),
-            address_1: "Test",
-            address_2: "tttest",
-            city: "Test City",
-            country_code: "us",
-            postal_code: "12345",
-            province: null,
-            phone: null,
-
-            metadata: { email: "test@mail.com" },
-          },
-          created_at: expect.any(String),
-          updated_at: expect.any(String),
-          metadata: { custom_location: "yes" }
-        })
-      })
-
       it("should create a order fulfillment and cancel it", async () => {
         const inventoryModule = container.resolve(Modules.INVENTORY)
 
@@ -429,8 +380,31 @@ medusaIntegrationTestRunner({
             location_id: undefined,
           }
 
-        await createOrderFulfillmentWorkflow(container).run({
+        const wf = await createOrderFulfillmentWorkflow(container).run({
           input: createOrderFulfillmentData,
+        })
+
+
+        // Verifying that the location data was passed to the create fulfillment workflow
+        // TODO: This gets pretty nasty, should be updated if there is a better approach.
+        expect(wf.transaction.context.invoke['create-fulfillment-workflow-as-step'].output.compensateInput.transaction.payload.location).toEqual({
+          id: location.id,
+          name: "Warehouse",
+          address: {
+            id: expect.any(String),
+            address_1: "Test",
+            address_2: "tttest",
+            city: "Test City",
+            country_code: "us",
+            postal_code: "12345",
+            province: null,
+            phone: null,
+
+            metadata: { email: "test@mail.com" },
+          },
+          created_at: expect.any(String),
+          updated_at: expect.any(String),
+          metadata: { custom_location: "yes" }
         })
 
         const remoteQuery = container.resolve(
