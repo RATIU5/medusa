@@ -6,6 +6,7 @@ import {
   OrderLineItemDTO,
   OrderWorkflow,
   ReservationItemDTO,
+  StockLocationDTO,
 } from "@medusajs/types"
 import { MathBN, MedusaError, Modules } from "@medusajs/utils"
 import {
@@ -78,6 +79,7 @@ function prepareFulfillmentData({
   shippingMethod,
   reservations,
   itemsList,
+  location
 }: {
   order: OrderDTO
   input: OrderWorkflow.CreateOrderFulfillmentWorkflowInput
@@ -89,6 +91,7 @@ function prepareFulfillmentData({
   shippingMethod: { data?: Record<string, unknown> | null }
   reservations: ReservationItemDTO[]
   itemsList?: OrderLineItemDTO[]
+  location?: StockLocationDTO
 }) {
   const fulfillableItems = input.items
   const orderItemsMap = new Map<string, Required<OrderDTO>["items"][0]>(
@@ -141,6 +144,7 @@ function prepareFulfillmentData({
 
   return {
     input: {
+      location,
       location_id: locationId,
       provider_id: shippingOption.provider_id,
       shipping_option_id: shippingOption.id,
@@ -229,24 +233,48 @@ export const createOrderFulfillmentWorkflow = createWorkflow(
       OrderWorkflow.CreateOrderFulfillmentWorkflowInput & AdditionalData
     >
   ) => {
-    const order: OrderDTO = useRemoteQueryStep({
-      entry_point: "orders",
-      fields: [
-        "id",
-        "status",
-        "region_id",
-        "currency_code",
-        "items.*",
-        "items.variant.manage_inventory",
-        "items.variant.allow_backorder",
-        "shipping_address.*",
-        "shipping_methods.shipping_option_id",
-        "shipping_methods.data",
-      ],
-      variables: { id: input.order_id },
-      list: false,
-      throw_if_key_not_found: true,
-    })
+    const [order, location]: [OrderDTO, StockLocationDTO] = parallelize(
+      useRemoteQueryStep({
+        entry_point: "orders",
+        fields: [
+          "id",
+          "status",
+          "region_id",
+          "currency_code",
+          "items.*",
+          "items.variant.manage_inventory",
+          "items.variant.allow_backorder",
+          "shipping_address.*",
+          "shipping_methods.shipping_option_id",
+          "shipping_methods.data",
+        ],
+        variables: { id: input.order_id },
+        list: false,
+        throw_if_key_not_found: true,
+      }),
+      useRemoteQueryStep({
+        entry_point: "stock_location",
+        fields: [
+          "id",
+          "name",
+          "metadata",
+          "created_at",
+          "updated_at",
+          "address.id",
+          "address.address_1",
+          "address.address_2",
+          "address.city",
+          "address.country_code",
+          "address.phone",
+          "address.province",
+          "address.postal_code",
+          "address.metadata",
+        ],
+        variables: { id: input.location_id },
+        list: false,
+        throw_if_key_not_found: true,
+      }).config({ name: "get-location" }),
+    )
 
     createFulfillmentValidateOrder({ order, inputItems: input.items })
 
@@ -305,6 +333,7 @@ export const createOrderFulfillmentWorkflow = createWorkflow(
         shippingMethod,
         reservations,
         itemsList: input.items_list,
+        location
       },
       prepareFulfillmentData
     )
