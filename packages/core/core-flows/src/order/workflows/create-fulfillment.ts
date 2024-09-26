@@ -79,7 +79,7 @@ function prepareFulfillmentData({
   shippingMethod,
   reservations,
   itemsList,
-  location
+  location,
 }: {
   order: OrderDTO
   input: OrderWorkflow.CreateOrderFulfillmentWorkflowInput
@@ -132,7 +132,7 @@ function prepareFulfillmentData({
     locationId = shippingOption.service_zone.fulfillment_set.location?.id
   }
 
-  if (!locationId) {
+  if (!locationId || !location) {
     throw new MedusaError(
       MedusaError.Types.INVALID_DATA,
       `Cannot create fulfillment without stock location, either provide a location or you should link the shipping option ${shippingOption.id} to a stock location.`
@@ -273,7 +273,7 @@ export const createOrderFulfillmentWorkflow = createWorkflow(
         variables: { id: input.location_id },
         list: false,
         throw_if_key_not_found: true,
-      }).config({ name: "get-location" }),
+      }).config({ name: "get-location" })
     )
 
     createFulfillmentValidateOrder({ order, inputItems: input.items })
@@ -333,7 +333,7 @@ export const createOrderFulfillmentWorkflow = createWorkflow(
         shippingMethod,
         reservations,
         itemsList: input.items_list,
-        location
+        location,
       },
       prepareFulfillmentData
     )

@@ -7,6 +7,7 @@ import {
   OrderDTO,
   OrderPreviewDTO,
   OrderReturnItemDTO,
+  StockLocationDTO,
 } from "@medusajs/framework/types"
 import {
   ChangeActionType,
@@ -99,10 +100,7 @@ function prepareFulfillmentData({
     provider_id: string
     service_zone: {
       fulfillment_set: {
-        location?: {
-          id: string
-          address: Record<string, any>
-        }
+        location?: StockLocationDTO
       }
     }
   }
@@ -124,7 +122,14 @@ function prepareFulfillmentData({
     } as FulfillmentWorkflow.CreateFulfillmentItemWorkflowDTO
   })
 
-  const locationId = shippingOption.service_zone.fulfillment_set.location?.id!
+  if (!shippingOption.service_zone.fulfillment_set.location) {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      `Could not resolve the return location from the chosen shipping option`
+    )
+  }
+
+  const locationId = shippingOption.service_zone.fulfillment_set.location.id
 
   // delivery address is the stock location address
   const address =
@@ -137,6 +142,7 @@ function prepareFulfillmentData({
   return {
     input: {
       location_id: locationId,
+      location: shippingOption.service_zone.fulfillment_set.location,
       provider_id: shippingOption.provider_id,
       shipping_option_id: shippingOption.id,
       items: fulfillmentItems,
@@ -389,7 +395,7 @@ export const confirmClaimRequestWorkflow = createWorkflow(
           "id",
           "provider_id",
           "service_zone.fulfillment_set.location.id",
-          "service_zone.fulfillment_set.location.address.*",
+          "service_zone.fulfillment_set.location.*",
         ],
         variables: {
           id: returnShippingMethod.shipping_option_id,

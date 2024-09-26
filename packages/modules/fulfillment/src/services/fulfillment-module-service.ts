@@ -625,7 +625,10 @@ export default class FulfillmentModuleService
           fulfillmentData || {},
           items.map((i) => i),
           order,
-          fulfillmentRest
+          {
+            ...fulfillmentRest,
+            location: fulfillmentDataToCreate.location,
+          }
         )
       await this.fulfillmentService_.update(
         {

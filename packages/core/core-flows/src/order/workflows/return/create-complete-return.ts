@@ -5,6 +5,7 @@ import {
   OrderDTO,
   OrderWorkflow,
   ShippingOptionDTO,
+  StockLocationDTO,
   WithCalculatedPrice,
 } from "@medusajs/framework/types"
 import {
@@ -131,7 +132,7 @@ function prepareFulfillmentData({
   returnShippingOption: {
     id: string
     provider_id: string
-    service_zone: { fulfillment_set: { location?: { id: string } } }
+    service_zone: { fulfillment_set: { location?: StockLocationDTO } }
   }
 }) {
   const inputItems = input.items
@@ -155,7 +156,8 @@ function prepareFulfillmentData({
     locationId = returnShippingOption.service_zone.fulfillment_set.location?.id
   }
 
-  if (!locationId) {
+  const location = returnShippingOption.service_zone.fulfillment_set.location
+  if (!locationId || !location) {
     throw new MedusaError(
       MedusaError.Types.INVALID_DATA,
       `Cannot create return without stock location, either provide a location or you should link the shipping option ${returnShippingOption.id} to a stock location.`
@@ -165,6 +167,7 @@ function prepareFulfillmentData({
   return {
     input: {
       location_id: locationId,
+      location,
       provider_id: returnShippingOption.provider_id,
       shipping_option_id: input.return_shipping?.option_id,
       items: fulfillmentItems,
@@ -277,7 +280,7 @@ export const createAndCompleteReturnOrderWorkflow = createWorkflow(
         "provider_id",
         "calculated_price.calculated_amount",
         "calculated_price.is_calculated_price_tax_inclusive",
-        "service_zone.fulfillment_set.location.id",
+        "service_zone.fulfillment_set.location.*",
       ],
       variables: returnShippingOptionsVariables,
       list: false,
