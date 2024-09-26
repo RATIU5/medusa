@@ -1,3 +1,5 @@
+import { StockLocationDTO } from "../../stock-location"
+
 /**
  * The fulfillment address to be created.
  */
@@ -120,6 +122,11 @@ export type CreateFulfillmentWorkflowInput = {
    * The associated location's ID.
    */
   location_id: string
+
+  /**
+   * The associated location's data.
+   */
+  location: StockLocationDTO
 
   /**
    * The date the fulfillment was packed.

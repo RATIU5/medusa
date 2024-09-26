@@ -20,10 +20,6 @@ import {
   Modules,
   remoteQueryObjectFromString,
 } from "@medusajs/utils"
-import {
-  generateCreateFulfillmentData,
-  generateCreateShippingOptionsData,
-} from "../../fixtures"
 import { medusaIntegrationTestRunner } from "medusa-test-utils"
 
 jest.setTimeout(500000)
