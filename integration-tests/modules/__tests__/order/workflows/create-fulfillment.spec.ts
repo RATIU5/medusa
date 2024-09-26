@@ -20,6 +20,10 @@ import {
   Modules,
   remoteQueryObjectFromString,
 } from "@medusajs/utils"
+import {
+  generateCreateFulfillmentData,
+  generateCreateShippingOptionsData,
+} from "../../fixtures"
 import { medusaIntegrationTestRunner } from "medusa-test-utils"
 
 jest.setTimeout(500000)
@@ -80,11 +84,13 @@ async function prepareDataFixtures({ container }) {
       name: "Warehouse",
       address: {
         address_1: "Test",
-        city: "Test",
-        country_code: "US",
+        address_2: "tttest",
+        city: "Test City",
+        country_code: "us",
         postal_code: "12345",
-        phone: "12345",
+        metadata: { email: "test@mail.com" },
       },
+      metadata: { custom_location: "yes" }
     })
 
   const [product] = await productModule.createProducts([
@@ -349,6 +355,55 @@ medusaIntegrationTestRunner({
         product = fixtures.product
 
         orderService = container.resolve(Modules.ORDER)
+      })
+
+      it("should get stock location", async () => {
+        expect.assertions(1)
+        const workflow = createOrderFulfillmentWorkflow(container)
+
+        const order = await createOrderFixture({ container, product, location })
+        const itemWithInventory = order.items!.find(
+          (o) => o.variant_sku === variantSkuWithInventory
+        )!
+
+        // Create a fulfillment
+        const createOrderFulfillmentData: OrderWorkflow.CreateOrderFulfillmentWorkflowInput =
+          {
+            order_id: order.id,
+            created_by: "user_1",
+            items: [
+              {
+                id: itemWithInventory.id,
+                quantity: 1,
+              },
+            ],
+            no_notification: false,
+            // location_id: location.id,
+          }
+
+        const wf = await createOrderFulfillmentWorkflow(container).run({
+          input: createOrderFulfillmentData,
+        })
+
+        expect(wf.transaction.context.invoke['create-fulfillment-workflow-as-step'].output.compensateInput.transaction.payload.location).toEqual({
+          id: location.id,
+          name: "Warehouse",
+          address: {
+            id: expect.any(String),
+            address_1: "Test",
+            address_2: "tttest",
+            city: "Test City",
+            country_code: "us",
+            postal_code: "12345",
+            province: null,
+            phone: null,
+
+            metadata: { email: "test@mail.com" },
+          },
+          created_at: expect.any(String),
+          updated_at: expect.any(String),
+          metadata: { custom_location: "yes" }
+        })
       })
 
       it("should create a order fulfillment and cancel it", async () => {
